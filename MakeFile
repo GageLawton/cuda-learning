@@ -1,0 +1,36 @@
+# Compiler
+NVCC = nvcc
+
+# Directories
+SRC_DIR = src
+BUILD_DIR = build
+INCLUDE_DIR = include
+
+# Output
+TARGET = $(BUILD_DIR)/main.exe
+
+# Source files
+SRCS = $(wildcard $(SRC_DIR)/*.cu)
+
+# Flags
+NVCC_FLAGS = -O2 -lineinfo
+DEBUG_FLAGS = -g -G
+INCLUDES = -I$(INCLUDE_DIR)
+
+# Default build
+all:
+	mkdir -p $(BUILD_DIR)
+	$(NVCC) $(SRCS) -o $(TARGET) $(NVCC_FLAGS) $(INCLUDES)
+
+# Debug build
+debug:
+	mkdir -p $(BUILD_DIR)
+	$(NVCC) $(SRCS) -o $(TARGET) $(DEBUG_FLAGS) $(INCLUDES)
+
+# Run program
+run: all
+	./$(TARGET)
+
+# Clean build files
+clean:
+	rm -rf $(BUILD_DIR)
