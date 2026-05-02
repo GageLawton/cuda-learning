@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "build cuda",
+        "type": "shell",
+        "command": "nvcc",
+        "args": [
+          "src/main.cu",
+          "-o",
+          "build/main.exe"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": []
+      }
+    ]
+  }
