@@ -1,0 +1,69 @@
+# =========================
+# CUDA / C++ build outputs
+# =========================
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# NVIDIA CUDA compiler outputs
+*.i
+*.ii
+*.ptx
+*.cubin
+*.fatbin
+*.nvvm
+*.asm
+
+# Shared libraries
+*.so
+*.dll
+*.dylib
+*.a
+
+# =========================
+# Build directories
+# =========================
+build/
+cmake-build-*/
+bin/
+lib/
+out/
+
+# =========================
+# CMake
+# =========================
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# =========================
+# Visual Studio / VS Code
+# =========================
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# =========================
+# Logs / runtime output
+# =========================
+*.log
+*.txt
+*.tmp
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
