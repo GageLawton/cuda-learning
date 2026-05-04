@@ -4,7 +4,7 @@ setlocal
 REM ==========================================
 REM Load Visual Studio environment
 REM ==========================================
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+call "C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvars64.bat"
 if %errorlevel% neq 0 (
     echo Failed to load Visual Studio environment
     exit /b 1
