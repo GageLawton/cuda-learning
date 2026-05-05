@@ -83,9 +83,9 @@ int main(){
     for (int i = 0; i < 10; i++) {
         printf("C[%d] = %f\n", i, h_C[i]);
     }   
-    auto cpuTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    printf("CPU Time: %f ms\n", cpuTime);
-    printf("GPU Time: %f ms\n", gpuTime);
+    auto cpuTime = std::chrono::duration<double, std::micro>(end - start).count();
+    printf("CPU Time: %.3f ms\n", cpuTime / 1000.0);
+    printf("GPU Time: %.3f ms\n", gpuTime);
     
     return 0;
 }
