@@ -1,96 +1,101 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <chrono>
-#define N 1024
 
 #define CUDA_CHECK(call) \
 do { \
     cudaError_t err = call; \
     if (err != cudaSuccess) { \
-        printf("CUDA error: %s\\n", cudaGetErrorString(err)); \
+        printf("CUDA error: %s\n", cudaGetErrorString(err)); \
         return 1; \
     } \
-} while(0)  
+} while(0)
 
-__global__ void vectorAdd(float* d_A, float* d_B, float* d_C) {
-
+__global__ void vectorAdd(float* d_A, float* d_B, float* d_C, int n) {
     int i = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (i < N) {
-        // perform vector addition for element i
+    if (i < n) {
         d_C[i] = d_A[i] + d_B[i];
     }
 }
 
 void cpuVectorAdd(float* A, float* B, float* C, int n) {
-    // your addition logic here
     for (int i = 0; i < n; i++) {
         C[i] = A[i] + B[i];
     }
 }
 
 int main(){
-    // Measure CPU time
-    auto start = std::chrono::high_resolution_clock::now();
-
-    float h_A[N];
-    float h_B[N];
-    float h_C[N];
-
-    for( int i = 0; i < N; i++) {
-        h_A[i] = i * 1.0f;
-        h_B[i] = i * 2.0f;
-    }
-
-    cpuVectorAdd(h_A, h_B, h_C, N);
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Measure GPU time
-
-    // Warmup - force CUDA context initialization
+    // Warmup - do this ONCE before the loop
     float* warmup;
     cudaMalloc(&warmup, sizeof(float));
     cudaFree(warmup);
 
-    cudaEvent_t startEvent, stopEvent;
-    CUDA_CHECK(cudaEventCreate(&startEvent));
-    CUDA_CHECK(cudaEventCreate(&stopEvent));
-    CUDA_CHECK(cudaEventRecord(startEvent, 0));
+    int sizes[] = {1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576};
+    int numSizes = sizeof(sizes) / sizeof(sizes[0]);
 
-    float *d_A, *d_B, *d_C;
-    CUDA_CHECK(cudaMalloc((void**)&d_A, N * sizeof(float)));
-    CUDA_CHECK(cudaMalloc((void**)&d_B, N * sizeof(float)));
-    CUDA_CHECK(cudaMalloc((void**)&d_C, N * sizeof(float)));
+    printf("%-12s %-12s %-12s\n", "N", "CPU (ms)", "GPU (ms)");
+    printf("----------------------------------------\n");
 
+    for (int s = 0; s < numSizes; s++) {
+        int n = sizes[s];
 
-    CUDA_CHECK(cudaMemcpy(d_A, h_A, N * sizeof(float), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_B, h_B, N * sizeof(float), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemset(d_C, 0, N * sizeof(float)));
+        // Allocate host memory
+        float* h_A = new float[n];
+        float* h_B = new float[n];
+        float* h_C = new float[n];
 
-    vectorAdd<<<N/256, 256>>>(d_A, d_B, d_C);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-    CUDA_CHECK(cudaMemcpy(h_C, d_C, N * sizeof(float), cudaMemcpyDeviceToHost));
+        // Initialize
+        for (int i = 0; i < n; i++) {
+            h_A[i] = i * 1.0f;
+            h_B[i] = i * 2.0f;
+        }
 
-    CUDA_CHECK(cudaEventRecord(stopEvent, 0));
-    CUDA_CHECK(cudaEventSynchronize(stopEvent));
+        // CPU benchmark
+        auto cpuStart = std::chrono::high_resolution_clock::now();
+        cpuVectorAdd(h_A, h_B, h_C, n);
+        auto cpuEnd = std::chrono::high_resolution_clock::now();
+        double cpuTime = std::chrono::duration<double, std::milli>(cpuEnd - cpuStart).count();
 
-    float gpuTime = 0.0f;
-    CUDA_CHECK(cudaEventElapsedTime(&gpuTime, startEvent, stopEvent));
-    CUDA_CHECK(cudaEventDestroy(startEvent));
-    CUDA_CHECK(cudaEventDestroy(stopEvent));
+        // GPU benchmark
+        float* d_A, *d_B, *d_C;
+        CUDA_CHECK(cudaMalloc((void**)&d_A, n * sizeof(float)));
+        CUDA_CHECK(cudaMalloc((void**)&d_B, n * sizeof(float)));
+        CUDA_CHECK(cudaMalloc((void**)&d_C, n * sizeof(float)));
 
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
+        cudaEvent_t startEvent, stopEvent;
+        CUDA_CHECK(cudaEventCreate(&startEvent));
+        CUDA_CHECK(cudaEventCreate(&stopEvent));
+        CUDA_CHECK(cudaEventRecord(startEvent, 0));
 
-    // Print results
-    for (int i = 0; i < 10; i++) {
-        printf("C[%d] = %f\n", i, h_C[i]);
-    }   
-    auto cpuTime = std::chrono::duration<double, std::micro>(end - start).count();
-    printf("CPU Time: %.3f ms\n", cpuTime / 1000.0);
-    printf("GPU Time: %.3f ms\n", gpuTime);
-    
+        CUDA_CHECK(cudaMemcpy(d_A, h_A, n * sizeof(float), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_B, h_B, n * sizeof(float), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemset(d_C, 0, n * sizeof(float)));
+
+        int threadsPerBlock = 256;
+        int blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+        vectorAdd<<<blocks, threadsPerBlock>>>(d_A, d_B, d_C, n);
+        CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(h_C, d_C, n * sizeof(float), cudaMemcpyDeviceToHost));
+
+        CUDA_CHECK(cudaEventRecord(stopEvent, 0));
+        CUDA_CHECK(cudaEventSynchronize(stopEvent));
+
+        float gpuTime = 0.0f;
+        CUDA_CHECK(cudaEventElapsedTime(&gpuTime, startEvent, stopEvent));
+        CUDA_CHECK(cudaEventDestroy(startEvent));
+        CUDA_CHECK(cudaEventDestroy(stopEvent));
+
+        printf("%-12d %-12.3f %-12.3f\n", n, cpuTime, gpuTime);
+
+        // Free everything inside the loop
+        cudaFree(d_A);
+        cudaFree(d_B);
+        cudaFree(d_C);
+        delete[] h_A;
+        delete[] h_B;
+        delete[] h_C;
+    }
+
     return 0;
 }
