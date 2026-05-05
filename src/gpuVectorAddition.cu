@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
-#include <chrono>
 #define N 1024
 
 #define CUDA_CHECK(call) \
@@ -10,28 +9,19 @@ do { \
         printf("CUDA error: %s\\n", cudaGetErrorString(err)); \
         return 1; \
     } \
-} while(0)  
+} while(0)
 
 __global__ void vectorAdd(float* d_A, float* d_B, float* d_C) {
 
     int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (i < N) {
         // perform vector addition for element i
+        printf("Thread %d is processing element %d\n", threadIdx.x, i);
         d_C[i] = d_A[i] + d_B[i];
     }
 }
 
-void cpuVectorAdd(float* A, float* B, float* C, int n) {
-    // your addition logic here
-    for (int i = 0; i < n; i++) {
-        C[i] = A[i] + B[i];
-    }
-}
-
 int main(){
-    // Measure CPU time
-    auto start = std::chrono::high_resolution_clock::now();
-
     float h_A[N];
     float h_B[N];
     float h_C[N];
@@ -40,17 +30,6 @@ int main(){
         h_A[i] = i * 1.0f;
         h_B[i] = i * 2.0f;
     }
-
-    cpuVectorAdd(h_A, h_B, h_C, N);
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Measure GPU time
-
-    cudaEvent_t startEvent, stopEvent;
-    CUDA_CHECK(cudaEventCreate(&startEvent));
-    CUDA_CHECK(cudaEventCreate(&stopEvent));
-    CUDA_CHECK(cudaEventRecord(startEvent, 0));
 
     float *d_A, *d_B, *d_C;
     CUDA_CHECK(cudaMalloc((void**)&d_A, N * sizeof(float)));
@@ -67,25 +46,13 @@ int main(){
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(h_C, d_C, N * sizeof(float), cudaMemcpyDeviceToHost));
 
-    CUDA_CHECK(cudaEventRecord(stopEvent, 0));
-    CUDA_CHECK(cudaEventSynchronize(stopEvent));
-
-    float gpuTime = 0.0f;
-    CUDA_CHECK(cudaEventElapsedTime(&gpuTime, startEvent, stopEvent));
-    CUDA_CHECK(cudaEventDestroy(startEvent));
-    CUDA_CHECK(cudaEventDestroy(stopEvent));
+    for (int i = 0; i < 10; i++) {
+        printf("C[%d] = %f\n", i, h_C[i]);
+    }
 
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
 
-    // Print results
-    for (int i = 0; i < 10; i++) {
-        printf("C[%d] = %f\n", i, h_C[i]);
-    }   
-    auto cpuTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    printf("CPU Time: %f ms\n", cpuTime);
-    printf("GPU Time: %f ms\n", gpuTime);
-    
     return 0;
 }
