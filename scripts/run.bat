@@ -12,11 +12,12 @@ if "%MODE%"=="debug" (
     set EXE=build\main.exe
 )
 
-if not exist %EXE% (
-    echo Executable not found. Building first...
-    call scripts\build.bat %MODE%
-    if %errorlevel% neq 0 exit /b 1
-)
+echo Cleaning build...
+call scripts\clean.bat
+
+echo Building...
+call scripts\build.bat %MODE%
+if %errorlevel% neq 0 exit /b 1
 
 echo Running CUDA program [%MODE%]...
 %EXE% %*
