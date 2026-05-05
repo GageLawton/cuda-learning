@@ -47,6 +47,11 @@ int main(){
 
     // Measure GPU time
 
+    // Warmup - force CUDA context initialization
+    float* warmup;
+    cudaMalloc(&warmup, sizeof(float));
+    cudaFree(warmup);
+
     cudaEvent_t startEvent, stopEvent;
     CUDA_CHECK(cudaEventCreate(&startEvent));
     CUDA_CHECK(cudaEventCreate(&stopEvent));
