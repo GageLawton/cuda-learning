@@ -41,30 +41,30 @@ int main(){
     float kernelTime = 0.0f;
     float d2hTime = 0.0f;
 
+    float totalH2D = 0.0f;
+    float totalKernel = 0.0f;
+    float totalD2H = 0.0f;
+
     printf("%-12s %-12s %-12s %-12s %-12s\n", "N", "H2D (ms)", "Kernel (ms)", "D2H (ms)", "Total (ms)");
     printf("------------------------------------------------------------------------\n");
 
     for (int s = 0; s < numSizes; s++) {
         int n = sizes[s];
 
-        // Allocate host memory
         float* h_C = new float[n];
 
-        // Allocate device memory
         float* d_A, *d_B, *d_C;
         CUDA_CHECK(cudaMalloc((void**)&d_A, n * sizeof(float)));
         CUDA_CHECK(cudaMalloc((void**)&d_B, n * sizeof(float)));
         CUDA_CHECK(cudaMalloc((void**)&d_C, n * sizeof(float)));
 
-        // Initialize arrays directly on GPU - no H2D needed for input data
         int threadsPerBlock = 256;
         int blocks = (n + threadsPerBlock - 1) / threadsPerBlock;
         initArray<<<blocks, threadsPerBlock>>>(d_A, 1.0f, n);
         initArray<<<blocks, threadsPerBlock>>>(d_B, 2.0f, n);
         CUDA_CHECK(cudaDeviceSynchronize());
 
-        // Event one - H2D transfer time
-        // Note: since we init on GPU, we measure a dummy H2D to still capture PCIe cost
+        // H2D
         float* h_dummy = new float[n];
         cudaEvent_t h2dStart, h2dStop;
         CUDA_CHECK(cudaEventCreate(&h2dStart));
@@ -79,7 +79,7 @@ int main(){
         CUDA_CHECK(cudaEventDestroy(h2dStop));
         delete[] h_dummy;
 
-        // Event two - kernel execution time
+        // Kernel
         cudaEvent_t kernelStart, kernelStop;
         CUDA_CHECK(cudaEventCreate(&kernelStart));
         CUDA_CHECK(cudaEventCreate(&kernelStop));
@@ -93,7 +93,7 @@ int main(){
         CUDA_CHECK(cudaEventDestroy(kernelStart));
         CUDA_CHECK(cudaEventDestroy(kernelStop));
 
-        // Event three - D2H transfer time
+        // D2H
         cudaEvent_t d2hStart, d2hStop;
         CUDA_CHECK(cudaEventCreate(&d2hStart));
         CUDA_CHECK(cudaEventCreate(&d2hStop));
@@ -108,11 +108,23 @@ int main(){
         float totalTime = h2dTime + kernelTime + d2hTime;
         printf("%-12d %-12.3f %-12.3f %-12.3f %-12.3f\n", n, h2dTime, kernelTime, d2hTime, totalTime);
 
+        totalH2D += h2dTime;
+        totalKernel += kernelTime;
+        totalD2H += d2hTime;
+
         cudaFree(d_A);
         cudaFree(d_B);
         cudaFree(d_C);
         delete[] h_C;
     }
+
+    float grandTotal = totalH2D + totalKernel + totalD2H;
+    printf("------------------------------------------------------------------------\n");
+    printf("%-12s %-12.1f%% %-12.1f%% %-12.1f%%\n",
+        "% of Total",
+        (totalH2D / grandTotal) * 100.0f,
+        (totalKernel / grandTotal) * 100.0f,
+        (totalD2H / grandTotal) * 100.0f);
 
     return 0;
 }
