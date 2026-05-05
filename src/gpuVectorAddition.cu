@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
-#define N 1024
 
 #define CUDA_CHECK(call) \
 do { \
